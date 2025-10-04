@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safety Reporter</title>
+  <link rel="shortcut icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23ffffff'/><path d='M50 8l42 84H8L50 8z' fill='%23ff6a00'/><circle cx='50' cy='64' r='6' fill='%23000'/><rect x='47' y='36' width='6' height='20' fill='%23000'/></svg>">
+  <style>
+    :root{
+      --bg:#0f1115;         /* dark slate */
+      --card:#141820;       /* card surface */
+      --muted:#a7b0c0;      /* text muted */
+      --text:#e6e9ef;       /* text */
+      --accent:#ff6a00;     /* safety orange */
+      --accent-800:#cc5600;
+      --success:#22c55e;    /* green */
+      --warn:#f59e0b;       /* amber */
+      --danger:#ef4444;     /* red */
+      --radius:16px;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0d0f14, #0c0e12 40%, #0b0d11);color:var(--text);font:16px/1.5 Inter,system-ui,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif}
+    .container{max-width:1100px;margin:32px auto;padding:0 16px}
+    header{display:flex;align-items:center;gap:16px;margin-bottom:24px}
+    .logo{width:44px;height:44px;border-radius:12px;background:conic-gradient(from 220deg at 50% 50%, var(--accent), #ffa45e 35%, #202632 36%, #202632 100%);display:grid;place-items:center;box-shadow:var(--shadow)}
+    .logo svg{width:26px;height:26px}
+    h1{margin:0;font-size:26px;letter-spacing:.2px}
+    .sub{color:var(--muted)}
+
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+    @media (max-width: 980px){.grid{grid-template-columns:1fr}}
+
+    .card{background:linear-gradient(180deg,#141820,#12161d);border:1px solid #1e2430;border-radius:var(--radius);box-shadow:var(--shadow)}
+    .card h2{margin:0 0 8px 0;font-size:18px}
+    .card .head{padding:18px 18px 0 18px}
+    .card .body{padding:18px}
+    .card .footer{padding:14px 18px;border-top:1px dashed #222938;display:flex;gap:10px;flex-wrap:wrap}
+
+    .row{display:grid;gap:12px}
+    .row.cols-2{grid-template-columns:1fr 1fr}
+    @media (max-width: 700px){.row.cols-2{grid-template-columns:1fr}}
+
+    label{font-weight:600;font-size:13px;color:#cfd6e6}
+    input[type=text], input[type=url], input[type=email], input[type=password], textarea, select{
+      width:100%;color:var(--text);background:#0e1218;border:1px solid #232a37;outline:none;border-radius:12px;padding:12px 14px;transition:.2s box-shadow,.2s border-color
+    }
+    textarea{min-height:120px;resize:vertical}
+    input[type=text]:focus, input[type=url]:focus, input[type=email]:focus, input[type=password]:focus, textarea:focus, select:focus{border-color:#2c3648;box-shadow:0 0 0 3px rgba(255,106,0,.15)}
+
+    .hint{font-size:12px;color:var(--muted)}
+
+    .btn{appearance:none;border:0;border-radius:12px;background:#1b2330;color:#f3f6fc;padding:12px 14px;font-weight:700;cursor:pointer;transition:.15s transform,.2s background;display:inline-flex;align-items:center;gap:10px}
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{background:linear-gradient(180deg,var(--accent),var(--accent-800));color:white}
+    .btn.ghost{background:transparent;border:1px solid #2a3343}
+    .btn.warn{background:linear-gradient(180deg,#f59e0b,#d97706);color:#000}
+    .btn.success{background:linear-gradient(180deg,#22c55e,#16a34a);color:#001001}
+
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-weight:700;font-size:12px;border:1px solid #2a3343;color:#cfd6e6}
+    .badge.crit{border-color:#3b0e0e;background:linear-gradient(180deg,#2a0e0e,#1e0a0a);color:#ffb3b3}
+    .badge.high{border-color:#3b180e;background:linear-gradient(180deg,#2a140e,#1e0f0a);color:#ffd0b3}
+    .badge.med{border-color:#2b2f10;background:linear-gradient(180deg,#1d2010,#16180c);color:#f2f5c8}
+    .badge.low{border-color:#103021;background:linear-gradient(180deg,#0d1f17,#0a1a13);color:#c8f5d8}
+
+    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+    .thumb{position:relative;overflow:hidden;border-radius:12px;border:1px solid #272f3e;background:#0d1219}
+    .thumb img{display:block;width:100%;height:100%;object-fit:cover;aspect-ratio:1/1}
+    .thumb button{position:absolute;top:6px;right:6px;background:#0b0f16;border:1px solid #2a3343;color:#eaeef7;padding:6px 9px;border-radius:999px;font-size:12px;cursor:pointer}
+
+    .list{display:grid;gap:12px}
+    .report{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:14px;border-radius:14px;border:1px solid #1f2633;background:linear-gradient(180deg,#121720,#0f131b)}
+    .report .dot{width:12px;height:12px;border-radius:50%}
+    .dot.low{background:var(--success)}
+    .dot.med{background:var(--warn)}
+    .dot.high{background:#ff6a00}
+    .dot.crit{background:var(--danger)}
+
+    .muted{color:var(--muted)}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+
+    dialog{border:1px solid #222a38;border-radius:16px;max-width:880px;width:calc(100% - 24px);background:#0e1218;color:var(--text)}
+    dialog::backdrop{background:rgba(0,0,0,.6)}
+
+    .preview{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+    @media (max-width: 900px){.preview{grid-template-columns:1fr}}
+    .preview .section{border:1px solid #202737;border-radius:12px;padding:14px;background:#0b1016}
+
+    .maplink{display:inline-flex;align-items:center;gap:8px}
+    .sr-only{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+
+    /* Toasts */
+    .toast{position:fixed;right:16px;top:16px;display:grid;gap:8px;z-index:9999}
+    .toast .t{background:#0e1218;border:1px solid #232a37;color:#e6e9ef;padding:10px 12px;border-radius:10px;box-shadow:var(--shadow);max-width:360px}
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <div class="container">
+    <header>
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2L2 22h20L12 2z"></path>
+          <line x1="12" y1="8" x2="12" y2="14"></line>
+          <circle cx="12" cy="18" r="1"></circle>
+        </svg>
+      </div>
+      <div>
+        <h1>Safety Reporter</h1>
+        <div class="sub">Document unsafe conditions with photos, location, and formatted email sharing.</div>
+      </div>
+    </header>
+
+    <div class="grid">
+
+      <!-- Editor -->
+      <section class="card" aria-labelledby="newReport">
+        <div class="head">
+          <h2 id="newReport">Create / Edit Report</h2>
+        </div>
+        <div class="body">
+          <div class="row cols-2">
+            <div class="row">
+              <label for="title">Title</label>
+              <input id="title" type="text" placeholder="e.g., Missing guardrail on mezzanine" />
+            </div>
+            <div class="row">
+              <label for="severity">Severity</label>
+              <select id="severity">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="desc">Description</label>
+            <textarea id="desc" placeholder="Describe what you observed, people/equipment involved, and immediate actions taken."></textarea>
+          </div>
+
+          <div class="row cols-2">
+            <div class="row">
+              <label for="locationText">Apple Map Location <span class="muted">(auto-filled via GPS, editable)</span></label>
+              <input id="locationText" type="url" placeholder="https://maps.apple.com/?ll=..&q=.. or paste any address" />
+            </div>
+            <div class="row" style="align-content:end">
+              <button class="btn" id="btnGeolocate" type="button">📍 Use current location</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <label for="photos">Photos</label>
+            <input id="photos" type="file" accept="image/*" multiple />
+            <div class="hint" style="margin-top:6px">Tip: You can drag & drop images anywhere on the page. Large images are auto-compressed for faster email delivery.</div>
+            <div id="gallery" class="gallery" style="margin-top:10px" aria-live="polite"></div>
+          </div>
+        </div>
+        <div class="footer">
+          <button class="btn ghost" id="btnReset" type="button">Reset</button>
+          <button class="btn" id="btnSaveDraft" type="button">💾 Save Draft</button>
+          <button class="btn warn" id="btnPreview" type="button">👁️ Preview</button>
+          <button class="btn primary" id="btnSubmit" type="button">📧 Send via Email</button>
+        </div>
+      </section>
+
+      <!-- Library -->
+      <section class="card" aria-labelledby="library">
+        <div class="head">
+          <h2 id="library">Your Reports</h2>
+        </div>
+        <div class="body">
+          <div class="list" id="reportList" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <!-- Settings & Diagnostics (locked with access code) -->
+      <section class="card" aria-labelledby="settings">
+        <div class="head">
+          <h2 id="settings">Settings & Diagnostics</h2>
+        </div>
+        <div class="body">
+          <!-- Lock Row -->
+          <div class="row cols-2" id="settingsLock">
+            <div class="row">
+              <label for="settingsPassword">Access Code</label>
+              <input id="settingsPassword" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter access code" />
+              <div class="hint">Enter the access code to unlock this panel.</div>
+            </div>
+            <div class="row" style="align-content:end">
+              <button class="btn" id="btnUnlockSettings" type="button">🔓 Unlock</button>
+            </div>
+          </div>
+
+          <!-- Locked Content -->
+          <div id="settingsContent" style="display:none">
+            <div class="row">
+              <label for="endpoint">Email API Endpoint (POST)</label>
+              <input id="endpoint" type="url" placeholder="/api/send-report or https://your-api.example.com/api/send-report" disabled />
+              <div class="hint">If your site is static, POSTs to same origin may be blocked. Point this to a deployed backend that accepts POST and handles CORS.</div>
+            </div>
+
+            <div class="row cols-2">
+              <div class="row">
+                <label for="toEmails">To (comma-separated)</label>
+                <input id="toEmails" type="text" placeholder="e.g. safety@company.com, supervisor@company.com" disabled />
+              </div>
+              <div class="row">
+                <label for="ccEmails">CC (optional, comma-separated)</label>
+                <input id="ccEmails" type="text" placeholder="e.g. mark@example.com" disabled />
+              </div>
+            </div>
+
+            <div class="row cols-2">
+              <div class="row">
+                <label for="fromEmail">From (optional override)</label>
+                <input id="fromEmail" type="email" placeholder="e.g. noreply@company.com" disabled />
+              </div>
+              <div class="row">
+                <label for="subjectPrefix">Subject Prefix</label>
+                <input id="subjectPrefix" type="text" placeholder="[Safety]" disabled />
+              </div>
+            </div>
+
+            <div class="row cols-2">
+              <button class="btn" id="btnSaveSettings" type="button" disabled>💾 Save Settings</button>
+              <button class="btn ghost" id="btnTestEndpoint" type="button" disabled>🧪 Test Endpoint</button>
+            </div>
+            <div id="diag" class="muted" style="margin-top:8px"></div>
+            <hr style="border-color:#232a37;border-style:solid;border-width:1px 0 0;margin:16px 0">
+            <div class="row cols-2">
+              <button class="btn ghost" id="btnRunTests" type="button" disabled>▶ Run Self Tests</button>
+              <div id="testSummary" class="muted" style="align-self:center"></div>
+            </div>
+            <div id="testOutput" class="mono" style="white-space:pre-wrap;font-size:12px;margin-top:8px"></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Preview Dialog -->
+  <dialog id="dlgPreview">
+    <form method="dialog">
+      <div class="body">
+        <h2 style="margin:0 0 8px 0">Preview Report</h2>
+        <div class="muted" style="margin-bottom:12px">This is how your report will look in the formatted email.</div>
+        <div class="preview">
+          <section class="section">
+            <h3 style="margin:0 0 8px 0">Summary</h3>
+            <div id="pvSummary"></div>
+          </section>
+          <section class="section">
+            <h3 style="margin:0 0 8px 0">Photos</h3>
+            <div id="pvPhotos" class="gallery"></div>
+          </section>
+        </div>
+      </div>
+      <div class="footer" style="display:flex;justify-content:flex-end;gap:10px">
+        <button class="btn ghost">Close</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="tmplReportItem">
+    <div class="report">
+      <div class="dot"></div>
+      <div>
+        <div class="title" style="font-weight:800"></div>
+        <div class="muted" style="font-size:13px;margin-top:2px"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn ghost btn-view">View</button>
+        <button class="btn ghost btn-edit">Edit</button>
+        <button class="btn ghost btn-delete">Delete</button>
+      </div>
+    </div>
+  </template>
+
+  <script>
+  /* ==========================
+     IndexedDB (tiny helper)
+     ========================== */
+  const DB_NAME = 'safety-reporter-db';
+  const DB_STORE = 'reports';
+  function idb(){
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = (e)=>{
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains(DB_STORE)){
+          db.createObjectStore(DB_STORE,{keyPath:'id'});
+        }
+      };
+      req.onsuccess = ()=>resolve(req.result);
+      req.onerror = ()=>reject(req.error);
+    })
+  }
+  async function dbPut(obj){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(obj);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
+  async function dbGetAll(){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readonly');const req=tx.objectStore(DB_STORE).getAll();req.onsuccess=()=>res(req.result||[]);req.onerror=()=>rej(req.error)})}
+  async function dbGet(id){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readonly');const req=tx.objectStore(DB_STORE).get(id);req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error)})}
+  async function dbDel(id){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(id);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error)})}
+
+  /* ==========================
+     Utilities
+     ========================== */
+  const $ = (sel,root=document)=>root.querySelector(sel);
+  const $$= (sel,root=document)=>Array.from(root.querySelectorAll(sel));
+  const uid = ()=> 'r_'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+  const nowIso = ()=> new Date().toISOString();
+
+  function on(sel, event, handler){
+    const el = $(sel);
+    if(!el) return false;
+    el.addEventListener(event, handler);
+    return true;
+  }
+
+  function toast(msg){
+    const box = $('#toast');
+    if(!box){ console.info(msg); return; }
+    const t = document.createElement('div');
+    t.className='t';
+    t.textContent = msg;
+    box.appendChild(t);
+    setTimeout(()=>{t.remove()}, 4500);
+  }
+
+  function severityBadge(sev){
+    const map = {low:'low', medium:'med', high:'high', critical:'crit'};
+    const label = sev.charAt(0).toUpperCase()+sev.slice(1);
+    return `<span class="badge ${map[sev]||'low'}">${label}</span>`
+  }
+
+  function appleMapsLink({lat,lon,label}){
+    const q = encodeURIComponent(label||`${lat.toFixed(5)}, ${lon.toFixed(5)}`);
+    return `https://maps.apple.com/?ll=${lat},${lon}&q=${q}`;
+  }
+
+  async function getCurrentPosition(){
+    return new Promise((resolve,reject)=>{
+      if(!('geolocation' in navigator)) return reject(new Error('Geolocation not supported'));
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const {latitude, longitude} = pos.coords;
+        resolve({lat:latitude, lon:longitude});
+      }, err=>reject(err), {enableHighAccuracy:true, timeout:12000, maximumAge:0});
+    })
+  }
+
+  function fileListToArray(fileList){return Array.from(fileList || [])}
+
+  function readFileAsDataURL(file){
+    return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>rej(fr.error);fr.readAsDataURL(file)})
+  }
+
+  // Lightweight client-side image compression to keep emails deliverable
+  async function compressImageDataUrl(dataUrl, maxW=1600, maxH=1600, quality=0.8){
+    return new Promise((resolve)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        let {width:w, height:h} = img;
+        const ratio = Math.min(1, maxW / w, maxH / h);
+        const cw = Math.round(w * ratio), ch = Math.round(h * ratio);
+        const c = document.createElement('canvas');
+        c.width = cw; c.height = ch;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, cw, ch);
+        // Keep original type if possible (default to JPEG)
+        const type = dataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
+        const out = c.toDataURL(type, quality);
+        resolve(out);
+      };
+      img.onerror = ()=>resolve(dataUrl);
+      img.src = dataUrl;
+    })
+  }
+
+  /* ==========================
+     Settings (persisted)
+     ========================== */
+  const SETTINGS_KEY = 'safety-reporter-settings';
+  function loadSettings(){
+    try{ return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {} }catch{ return {} }
+  }
+  function saveSettings(s){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(s||{})) }
+
+  const SETTINGS_PASSCODE = '27734'; // in-memory lock only
+  let __settingsUnlocked = false;
+  function isSettingsUnlocked(){ return __settingsUnlocked; }
+  function setSettingsUnlocked(v){ __settingsUnlocked = !!v; }
+  function updateSettingsLockUI(){
+    const unlocked = isSettingsUnlocked();
+    const content = document.getElementById('settingsContent');
+    const lockRow = document.getElementById('settingsLock');
+    if(content) content.style.display = unlocked ? '' : 'none';
+    if(lockRow) lockRow.style.display = unlocked ? 'none' : '';
+    const ids = ['endpoint','btnSaveSettings','btnTestEndpoint','btnRunTests','toEmails','ccEmails','fromEmail','subjectPrefix'];
+    ids.map(id=>document.getElementById(id)).forEach(el=>{ if(el) el.disabled = !unlocked; });
+  }
+
+  /* ==========================
+     State
+     ========================== */
+  const state = {
+    currentId: null,
+    photos: [], // {name, dataUrl}
+    settings: loadSettings(),
+  };
+
+  function resetEditor(){
+    $('#title').value='';
+    $('#severity').value='low';
+    $('#desc').value='';
+    $('#locationText').value='';
+    state.photos = [];
+    state.currentId = null;
+    renderGallery();
+  }
+
+  function renderGallery(){
+    const g = $('#gallery');
+    g.innerHTML = '';
+    state.photos.forEach((p,idx)=>{
+      const div = document.createElement('div');
+      div.className='thumb';
+      div.innerHTML = `<img alt="Report photo ${idx+1}" src="${p.dataUrl}"><button type="button" aria-label="Remove photo">✕</button>`;
+      $('button',div).addEventListener('click',()=>{state.photos.splice(idx,1);renderGallery()});
+      g.appendChild(div);
+    })
+  }
+
+  async function loadLibrary(){
+    const list = await dbGetAll();
+    list.sort((a,b)=> (b.updatedAt||b.createdAt||'').localeCompare(a.updatedAt||a.createdAt||''));
+    const wrap = $('#reportList');
+    wrap.innerHTML = '';
+    list.forEach(item=>{
+      const t = document.importNode($('#tmplReportItem').content,true);
+      const dot = $('.dot', t);
+      dot.classList.add(item.severity==='critical'?'crit':item.severity==='high'?'high':item.severity==='medium'?'med':'low');
+      $('.title', t).textContent = item.title || '(Untitled report)';
+      $('.muted', t).textContent = new Date(item.updatedAt||item.createdAt).toLocaleString() + (item.locationLabel?` • ${item.locationLabel}`:'');
+      $('.btn-view', t).addEventListener('click',()=>openPreview(item));
+      $('.btn-edit', t).addEventListener('click',()=>loadIntoEditor(item));
+      $('.btn-delete', t).addEventListener('click',async()=>{if(confirm('Delete this report?')){await dbDel(item.id);loadLibrary()}});
+      wrap.appendChild(t);
+    })
+  }
+
+  function loadIntoEditor(item){
+    state.currentId = item.id;
+    $('#title').value = item.title || '';
+    $('#severity').value = item.severity || 'low';
+    $('#desc').value = item.description || '';
+    $('#locationText').value = item.locationUrl || '';
+    state.photos = (item.photos||[]).slice();
+    renderGallery();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function currentFormToObject(){
+    const id = state.currentId || uid();
+    const title = $('#title').value.trim();
+    const severity = $('#severity').value;
+    const description = $('#desc').value.trim();
+    const locationUrl = $('#locationText').value.trim();
+    let locationLabel = '';
+    try{
+      if(locationUrl){
+        const u = new URL(locationUrl, window.location.origin);
+        locationLabel = u.searchParams.get('q') || u.hostname || u.pathname.replace(/\/$/,'');
+      }
+    }catch{ /* ignore bad URLs; label stays empty */ }
+    const createdAt = state.currentId ? undefined : nowIso();
+    const updatedAt = nowIso();
+    return { id, title, severity, description, locationUrl, locationLabel, photos: state.photos, createdAt, updatedAt };
+  }
+
+  function openPreview(item){
+    const d = $('#dlgPreview');
+    const target = item || currentFormToObject();
+
+    const sev = severityBadge(target.severity||'low');
+    $('#pvSummary').innerHTML = `
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center">
+        <div>${sev}</div>
+        <div style="font-weight:800;font-size:18px">${escapeHtml(target.title||'(Untitled report)')}</div>
+      </div>
+      <div class="muted" style="margin-top:6px">Created ${new Date(target.createdAt||nowIso()).toLocaleString()}</div>
+      <div style="margin-top:10px">${nl2br(escapeHtml(target.description||''))}</div>
+      ${target.locationUrl?`<div style="margin-top:12px"><a class="maplink" href="${target.locationUrl}" target="_blank" rel="noopener">🗺️ Open in Apple Maps</a></div>`:''}
+    `;
+
+    const pv = $('#pvPhotos');
+    pv.innerHTML = '';
+    (target.photos||[]).forEach((p)=>{
+      const div = document.createElement('div');
+      div.className='thumb';
+      div.innerHTML = `<img alt="Photo" src="${p.dataUrl}">`;
+      pv.appendChild(div);
+    })
+
+    if(d && typeof d.showModal === 'function') {
+      d.showModal();
+    } else {
+      alert('Preview is not supported in this browser.');
+    }
+  }
+
+  function escapeHtml(s){return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))}
+  function nl2br(s){return (s||'').replace(/\n/g,'<br>')}
+
+  /* ==========================
+     Email Composition
+     ========================== */
+  function buildEmailHtml(report){
+    const sevColor = ({low:'#22c55e', medium:'#f59e0b', high:'#ff6a00', critical:'#ef4444'})[report.severity||'low'];
+    const safe = s=> (s||'').replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><style>body{font-family:Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:0;background:#0e1218;color:#e6e9ef} .wrap{max-width:720px;margin:0 auto;padding:20px} .card{background:linear-gradient(180deg,#141820,#12161d);border:1px solid #1e2430;border-radius:14px;padding:18px;color:#e6e9ef} h1{margin:0 0 6px 0} .muted{color:#a7b0c0} .kv{display:grid;grid-template-columns:140px 1fr;gap:8px;margin-top:12px} .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:12px} .pill{display:inline-block;border:2px solid ${sevColor};color:${sevColor};padding:4px 10px;border-radius:999px;font-weight:700}</style></head><body><div class="wrap"><div class="card"><h1>${safe(report.title||'(Untitled report)')}</h1><div class="muted">Submitted ${new Date(report.updatedAt||report.createdAt||Date.now()).toLocaleString()}</div><div style="margin-top:10px">${(safe(report.description)||'').replace(/\n/g,'<br>')}</div><div class="kv"><div><strong>Severity</strong></div><div><span class="pill">${(report.severity||'low').toUpperCase()}</span></div><div><strong>Location</strong></div><div>${report.locationUrl?`<a href="${report.locationUrl}">Open in Apple Maps</a>`:'—'}</div><div><strong>Report ID</strong></div><div>${report.id}</div></div><div class="photos">${(report.photos||[]).map((p,i)=>`<div><img src="${p.dataUrl}" alt="Photo ${i+1}" style="width:100%;height:auto;border-radius:10px;border:1px solid #1e2430"></div>`).join('')}</div></div></div></body></html>`;
+  }
+
+  function classifyTransportError(status, bodyText){
+    const txt = (bodyText||'').toLowerCase();
+    if(/unsupportedhttpverb/.test(txt)) return 'Your host rejected POST requests (often seen on Azure Blob static websites).';
+    if(/cors|not allowed by access-control-allow-origin/.test(txt)) return 'CORS blocked the request.';
+    if(status===404) return 'Endpoint not found (404).';
+    if(status===405) return 'Method not allowed (405).';
+    if(status===0) return 'Network error or blocked by the browser.';
+    return `HTTP ${status} sending to API.`;
+  }
+
+  function parseCsvEmails(s){
+    return (s||'')
+      .split(',')
+      .map(x=>x.trim())
+      .filter(Boolean);
+  }
+
+  async function sendEmail(report){
+    const settings = state.settings || {};
+    const ENDPOINT = (settings.endpoint && settings.endpoint.trim()) || '/api/send-report';
+    const toList = parseCsvEmails(settings.toEmails || '');
+    const ccList = parseCsvEmails(settings.ccEmails || '');
+    const subjectPrefix = (settings.subjectPrefix || '[Safety]').trim();
+    const subject = `${subjectPrefix} ${report.title||'Unsafe condition'} (${(report.severity||'low').toUpperCase()})`;
+
+    // Try backend first (supports attachments)
+    try{
+      const res = await fetch(ENDPOINT,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ report, mail: { to: toList, cc: ccList, from: settings.fromEmail||undefined, subject } })
+      });
+      const text = await res.text().catch(()=>"");
+      if(res.ok){ toast('Report emailed successfully via backend.'); return true; }
+      else { const why = classifyTransportError(res.status, text); toast(`Backend email failed: ${why} Falling back to mailto…`); }
+    }catch(err){ toast('Could not reach email API. Falling back to mailto…'); }
+
+    // Fallback: mailto (no attachments)
+    const mailtoTo = encodeURIComponent((toList[0]||''));
+    const mailtoCc = encodeURIComponent(ccList.join(','));
+    const body = encodeURIComponent(
+      `Report ID: ${report.id}\n`+
+      `Severity: ${(report.severity||'low').toUpperCase()}\n`+
+      `When: ${new Date(report.updatedAt||report.createdAt||Date.now()).toLocaleString()}\n`+
+      `Location: ${report.locationUrl||'-'}\n\n`+
+      `${report.description||''}\n\n`+
+      `(Photos are not attached in this fallback. Use the backend for attachments.)`
+    );
+    const ccParam = mailtoCc ? `&cc=${mailtoCc}` : '';
+    window.location.href = `mailto:${mailtoTo}?subject=${encodeURIComponent(subject)}&body=${body}${ccParam}`;
+    return false;
+  }
+
+  /* ==========================
+     Diagnostics & Tests
+     ========================== */
+  async function testEndpoint(){
+    if(!isSettingsUnlocked()){
+      const diag = $('#diag');
+      const msg = 'Settings are locked. Enter access code to run diagnostics.';
+      if(diag) diag.textContent = msg; else toast(msg);
+      return;
+    }
+    const settings = state.settings || {};
+    const ENDPOINT = (settings.endpoint && settings.endpoint.trim()) || '/api/send-report';
+    const diag = $('#diag');
+    if(diag) diag.textContent = 'Testing…';
+    try{
+      const res = await fetch(ENDPOINT,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ping:true })
+      });
+      const text = await res.text().catch(()=>"");
+      const msg = res.ok ? '✅ Endpoint reachable and accepted POST.' : `⚠️ ${classifyTransportError(res.status, text)}`;
+      if(diag) diag.textContent = msg; else toast(msg);
+    }catch(err){
+      const msg = '⚠️ Unable to reach endpoint (network/CORS). This is expected on static-only hosts. Mailto fallback will be used.';
+      if(diag) diag.textContent = msg; else toast(msg);
+    }
+  }
+
+  function runSelfTests(){
+    if(!isSettingsUnlocked()) { toast('Settings are locked. Enter access code to run self-tests.'); return; }
+    const out = [];
+    function assert(cond, msg){ if(!cond) throw new Error(msg); }
+    function t(name, fn){ try{ fn(); out.push(`✅ ${name}`) } catch(e){ out.push(`❌ ${name} — ${e.message}`) } }
+
+    t('appleMapsLink builds correct URL', ()=>{
+      const url = appleMapsLink({lat:47.62, lon:-122.35});
+      assert(/maps\.apple\.com/.test(url), 'must be Apple Maps URL');
+      assert(/ll=47\.62,-122\.35/.test(url), 'must include lat,lon');
+    });
+
+    t('severityBadge has critical class', ()=>{
+      const html = severityBadge('critical');
+      assert(/badge/.test(html) && /crit/.test(html), 'should include classes');
+    });
+
+    t('buildEmailHtml includes title and location', ()=>{
+      const r = {id:'t1', title:'Trip hazard', severity:'high', description:'Loose cable', locationUrl:'https://maps.apple.com/?ll=1,2', photos:[]};
+      const html = buildEmailHtml(r);
+      assert(/Trip hazard/.test(html), 'title missing');
+      assert(/Open in Apple Maps/.test(html), 'location link missing');
+    });
+
+    t('classifyTransportError detects Azure UnsupportedHttpVerb', ()=>{
+      const why = classifyTransportError(405, '<Error><Code>UnsupportedHttpVerb</Code></Error>');
+      assert(/rejected POST/i.test(why), 'did not classify Azure error');
+    });
+
+    t('on() returns false when element is missing (no throw)', ()=>{
+      const ok = on('#element-that-does-not-exist', 'click', ()=>{});
+      assert(ok === false, 'on() should return false for missing elements');
+    });
+
+    t('nl2br handles undefined safely', ()=>{
+      const outHtml = nl2br(undefined);
+      assert(typeof outHtml === 'string', 'nl2br should return a string');
+    });
+
+    t('currentFormToObject tolerates bad location URL', ()=>{
+      $('#locationText').value = 'not a url >>>';
+      const obj = currentFormToObject();
+      assert(obj.locationLabel === '' || typeof obj.locationLabel === 'string', 'locationLabel should be string even on bad URL');
+    });
+
+    t('settings lock is engaged on load', ()=>{
+      assert(isSettingsUnlocked() === false, 'settings should start locked');
+    });
+
+    t('settings UI enables/disables correctly', ()=>{
+      setSettingsUnlocked(true); updateSettingsLockUI();
+      const ep = document.getElementById('endpoint');
+      if(ep) assert(ep.disabled === false, 'endpoint should be enabled after unlock');
+      setSettingsUnlocked(false); updateSettingsLockUI();
+      if(ep) assert(ep.disabled === true, 'endpoint should be disabled when locked');
+    });
+
+    const outText = out.join('\n');
+    const fails = out.filter(l=>/^❌/.test(l)).length;
+    const summary = fails? `Tests: ${out.length-fails} passed, ${fails} failed` : `All ${out.length} tests passed`;
+    const testOutput = $('#testOutput');
+    const testSummary = $('#testSummary');
+    if(testOutput) testOutput.textContent = outText; else console.log(outText);
+    if(testSummary) testSummary.textContent = summary; else toast(summary);
+  }
+
+  /* ==========================
+     Bind events after DOM is ready
+     ========================== */
+  window.addEventListener('DOMContentLoaded', () => {
+    on('#btnGeolocate','click', async ()=>{
+      try{
+        const {lat,lon} = await getCurrentPosition();
+        const url = appleMapsLink({lat,lon});
+        $('#locationText').value = url;
+      }catch(err){
+        toast('Could not get location: '+(err && err.message || 'unknown error'));
+      }
+    });
+
+    on('#photos','change', async (e)=>{
+      const files = fileListToArray(e.target.files).slice(0,50);
+      for(const f of files){
+        const dataUrl = await readFileAsDataURL(f);
+        const compressed = await compressImageDataUrl(dataUrl);
+        state.photos.push({name:f.name, dataUrl: compressed});
+      }
+      renderGallery();
+      e.target.value='';
+    });
+
+    // Drag & Drop support
+    window.addEventListener('dragover', (e)=>{e.preventDefault()});
+    window.addEventListener('drop', async (e)=>{
+      if(!e.dataTransfer) return;
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer.files||[]).filter(f=>/^image\//.test(f.type));
+      for(const f of files){
+        const dataUrl = await readFileAsDataURL(f);
+        const compressed = await compressImageDataUrl(dataUrl);
+        state.photos.push({name:f.name, dataUrl: compressed});
+      }
+      renderGallery();
+    });
+
+    on('#btnReset','click', resetEditor);
+
+    on('#btnSaveDraft','click', async ()=>{
+      const obj = currentFormToObject();
+      await dbPut(obj);
+      state.currentId = obj.id;
+      await loadLibrary();
+      toast('Draft saved locally.');
+    });
+
+    on('#btnPreview','click', ()=>openPreview());
+
+    on('#btnSubmit','click', async ()=>{
+      const obj = currentFormToObject();
+      if(!obj.title){toast('Please enter a title.');return}
+      await dbPut(obj); // keep a copy locally
+      await loadLibrary();
+      await sendEmail(obj);
+    });
+
+    on('#btnSaveSettings','click', ()=>{
+      if(!isSettingsUnlocked()){ toast('Settings are locked.'); return; }
+      const pull = id => (document.getElementById(id)?.value||'').trim();
+      state.settings.endpoint = pull('endpoint');
+      state.settings.toEmails = pull('toEmails');
+      state.settings.ccEmails = pull('ccEmails');
+      state.settings.fromEmail = pull('fromEmail');
+      state.settings.subjectPrefix = pull('subjectPrefix') || '[Safety]';
+      saveSettings(state.settings);
+      toast('Settings saved.');
+    });
+
+    on('#btnTestEndpoint','click', testEndpoint);
+    on('#btnRunTests','click', runSelfTests);
+
+    on('#btnUnlockSettings','click', ()=>{
+      const input = document.getElementById('settingsPassword');
+      const code = (input && input.value) ? input.value.trim() : '';
+      if(code === SETTINGS_PASSCODE){
+        setSettingsUnlocked(true);
+        updateSettingsLockUI();
+        toast('Settings unlocked.');
+      } else {
+        toast('Incorrect access code.');
+      }
+    });
+
+    // Initial load
+    (async()=>{
+      updateSettingsLockUI();
+      const setVal = (id, v)=>{ const el = document.getElementById(id); if(el) el.value = v||'' };
+      setVal('endpoint', state.settings.endpoint);
+      setVal('toEmails', state.settings.toEmails);
+      setVal('ccEmails', state.settings.ccEmails);
+      setVal('fromEmail', state.settings.fromEmail);
+      setVal('subjectPrefix', state.settings.subjectPrefix || '[Safety]');
+      await loadLibrary();
+    })();
+  });
+
+  </script>
+
+  <!-- =============================
+       Email Backend Options (UPDATED)
+       =============================
+       1) Node/Express + Nodemailer (works anywhere): see server.js below.
+       2) Azure Functions: deploy the function sample below and set Settings→Endpoint
+          to that function URL (ensure CORS allows your site).
+  -->
+
+  <!--
+  // package.json
+  {
+    "name": "safety-reporter-backend",
+    "type": "module",
+    "dependencies": {"express":"^4.19.2","nodemailer":"^6.9.13","cors":"^2.8.5"}
+  }
+
+  // server.js (Node/Express) — UPDATED to accept To/CC/From/Subject
+  import express from 'express';
+  import cors from 'cors';
+  import nodemailer from 'nodemailer';
+
+  const app = express();
+  app.use(cors());
+  app.use(express.json({limit:'25mb'})); // allow base64 photos
+
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT||465),
+    secure: true,
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+  });
+
+  function emailHtml(report){
+    const sevColor = ({low:'#22c55e', medium:'#f59e0b', high:'#ff6a00', critical:'#ef4444'})[report.severity||'low'];
+    const esc = s=> (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    return `<!doctype html><html><head><meta charset=\"utf-8\"><style>body{font-family:Segoe UI,Roboto,Arial,sans-serif;background:#f6f7fb;color:#0b0f16} .wrap{max-width:720px;margin:0 auto;padding:20px} .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px} .pill{display:inline-block;border:2px solid ${sevColor};color:${sevColor};padding:4px 10px;border-radius:999px;font-weight:700}</style></head><body><div class=wrap><div class=card><h1>${esc(report.title||'(Untitled report)')}</h1><div>Submitted ${new Date(report.updatedAt||report.createdAt||Date.now()).toLocaleString()}</div><p>${esc(report.description||'').replace(/\n/g,'<br>')}</p><p><strong>Severity:</strong> <span class=pill>${(report.severity||'low').toUpperCase()}</span></p><p><strong>Location:</strong> ${report.locationUrl?`<a href=\"${report.locationUrl}\">Open in Apple Maps</a>`:'—'}</p><p><strong>Report ID:</strong> ${report.id}</p></div></div></body></html>`;
+  }
+
+  app.options('/api/send-report', (req,res)=>{ // CORS preflight helper
+    res.set({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'content-type' });
+    res.status(204).end();
+  });
+
+  app.post('/api/send-report', async (req,res)=>{
+    try{
+      const { report, mail } = req.body;
+      if(!report) return res.status(400).send('Missing report');
+      const to = (mail?.to && mail.to.length) ? mail.to : (process.env.MAIL_TO ? process.env.MAIL_TO.split(',') : [process.env.SMTP_USER]);
+      const cc = (mail?.cc && mail.cc.length) ? mail.cc : undefined;
+      const from = mail?.from || process.env.MAIL_FROM || process.env.SMTP_USER;
+      const subject = mail?.subject || `[Safety] ${report.title||'Unsafe condition'} (${(report.severity||'low').toUpperCase()})`;
+      const attachments = (report.photos||[]).map((p,i)=>({
+        filename: p.name || `photo_${i+1}.jpg`,
+        content: Buffer.from(p.dataUrl.split(',')[1], 'base64'),
+        encoding: 'base64'
+      }));
+      const info = await transporter.sendMail({ from, to, cc, subject, html: emailHtml(report), attachments });
+      res.set('Access-Control-Allow-Origin','*');
+      res.json({ok:true,messageId:info.messageId});
+    }catch(err){
+      res.set('Access-Control-Allow-Origin','*');
+      res.status(500).send('Email failed: '+err.message);
+    }
+  });
+
+  const PORT = process.env.PORT||3000;
+  app.listen(PORT, ()=>console.log('API listening on '+PORT));
+
+  // ==========================
+  // Azure Functions (JavaScript) — UPDATED to accept To/CC/From/Subject
+  // ==========================
+  // folder: SendReportFunction
+  // file: function.json
+  // {
+  //   "bindings": [
+  //     {"authLevel": "function", "type": "httpTrigger", "direction": "in", "name": "req", "methods": ["post", "options"], "route": "send-report"},
+  //     {"type": "http", "direction": "out", "name": "res"}
+  //   ]
+  // }
+  // file: index.js
+  // import nodemailer from 'nodemailer';
+  // export default async function (context, req) {
+  //   if(req.method === 'OPTIONS'){
+  //     context.res = { status: 204, headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'content-type' } };
+  //     return;
+  //   }
+  //   try{
+  //     const report = req.body && req.body.report;
+  //     const mail = req.body && req.body.mail || {};
+  //     if(!report){ context.res = { status:400, body:'Missing report', headers:{'Access-Control-Allow-Origin':'*'} }; return; }
+  //     const transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT||465), secure: true, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+  //     const attachments = (report.photos||[]).map((p,i)=>({ filename: p.name || `photo_${i+1}.jpg`, content: Buffer.from(p.dataUrl.split(',')[1], 'base64'), encoding:'base64' }));
+  //     const to = mail.to?.length ? mail.to : (process.env.MAIL_TO ? process.env.MAIL_TO.split(',') : [process.env.SMTP_USER]);
+  //     const cc = mail.cc?.length ? mail.cc : undefined;
+  //     const from = mail.from || process.env.MAIL_FROM || process.env.SMTP_USER;
+  //     const subject = mail.subject || `[Safety] ${report.title||'Unsafe condition'} (${(report.severity||'low').toUpperCase()})`;
+  //     const info = await transporter.sendMail({ from, to, cc, subject, html: `<!doctype html><body>${report.title}</body>`, attachments });
+  //     context.res = { status:200, body:{ ok:true, messageId: info.messageId }, headers:{ 'Access-Control-Allow-Origin':'*' } };
+  //   }catch(e){ context.res = { status:500, body:'Email failed: '+e.message, headers:{'Access-Control-Allow-Origin':'*'} } }
+  // }
+
+  -->
+</body>
+</html>
